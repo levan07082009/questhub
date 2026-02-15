@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuestHub Live Demo</title>
+<style>
+body { font-family:'Segoe UI',sans-serif; background:#f5f5f5; margin:0; padding:20px;}
+.container { max-width:600px; margin:auto;}
+.profile { display:flex; justify-content:space-between; align-items:center; background:#fff; padding:15px 20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); margin-bottom:20px;}
+.profile-info {display:flex; align-items:center;}
+.profile-info img {width:50px; height:50px; border-radius:50%; margin-right:15px;}
+.xp-badge {background:#a56eff;color:#fff;padding:6px 12px;border-radius:20px;font-weight:bold;}
+h2 { margin-bottom:5px;}
+.challenge-card { background:#fff; border-radius:12px; padding:15px 20px; margin-bottom:15px; box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+.challenge-info { display:flex; align-items:center; gap:12px;}
+.challenge-info img {width:40px; height:40px;}
+.challenge-title { font-weight:600;}
+.challenge-xp { background:#a56eff;color:#fff;padding:5px 10px;border-radius:12px;font-weight:bold;}
+button { background:#00c3ad;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:600; cursor:pointer;}
+button:hover{background:#00a18f;}
+input[type=text]{padding:6px; border-radius:6px; border:1px solid #ccc; width:100%; margin-top:5px;}
+video{border-radius:12px; width:100%; margin-top:10px; display:none;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="profile">
+    <div class="profile-info">
+      <img src="https://i.pravatar.cc/50?img=5">
+      <div>
+        <div><strong>Guest</strong> Lv.1</div>
+        <div>🔥 0</div>
+      </div>
+    </div>
+    <div class="xp-badge" id="totalXP">0 XP</div>
+  </div>
+
+  <h2>Daily Challenges</h2>
+  <p>Complete habits, earn XP 💪</p>
+
+  <div class="challenge-card">
+    <div class="challenge-info">
+      <img src="https://img.icons8.com/emoji/48/running-shoe.png">
+      <div class="challenge-title">Morning Run<br><small>Run at least 2km before 8 AM</small></div>
+    </div>
+    <div class="challenge-xp">+50 XP</div>
+    <input type="text" placeholder="Describe activity" id="desc-run">
+    <video id="video-run" autoplay></video>
+    <button onclick="startCamera('run')">Take Photo</button>
+  </div>
+
+  <h3>Leaderboard</h3>
+  <ul id="leaderboard"></ul>
+</div>
+
+<script>
+let streams = {};
+async function startCamera(challenge){
+  const video = document.getElementById('video-' + challenge);
+  video.style.display = 'block';
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+  streams[challenge] = stream;
+
+  // Take photo after 3 seconds
+  setTimeout(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg'));
+
+    const formData = new FormData();
+    formData.append('name','Guest');
+    formData.append('description',document.getElementById('desc-'+challenge).value);
+    formData.append('image',blob,'photo.jpg');
+
+    const res = await fetch('/api/upload',{method:'POST',body:formData});
+    const data = await res.json();
+    alert(`You earned ${data.xp} XP!`);
+    document.getElementById('totalXP').innerText = data.totalXP + ' XP';
+
+    updateLeaderboard(data.leaderboard);
+
+    streams[challenge].getTracks().forEach(track => track.stop());
+  },3000);
+}
+
+function updateLeaderboard(lb){
+  const list = document.getElementById('leaderboard');
+  list.innerHTML = '';
+  lb.forEach(u => list.innerHTML += `<li>${u.name}: ${u.xp} XP</li>`);
+}
+</script>
+</body>
+</html>
